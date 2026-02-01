@@ -1,33 +1,32 @@
-import axios from 'axios';
-
-// Gunakan proxy jika di local terkena CORS, atau gunakan extension browser
 const BASE_URL = 'https://zeldvorik.ru/apiv3/api.php';
 
-const api = axios.create({
-  baseURL: BASE_URL,
-});
-
-export const fetchMovies = async (action, page = 1, query = null, detailPath = null) => {
+const fetchFromApi = async (params) => {
   try {
-    const params = { action, page };
-    if (query) params.q = query;
-    if (detailPath) params.detailPath = detailPath;
+    const url = new URL(BASE_URL);
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
 
-    const response = await api.get('', { params });
-    return response.data;
+    const response = await fetch(url.toString());
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status}`);
+    }
+    const data = await response.json();
+    return data;
   } catch (error) {
-    console.error("API Error:", error);
-    return null;
+    console.error('Fetch error:', error);
+    throw error;
   }
 };
 
-export const endpoints = {
-  trending: 'trending',
-  indoMovies: 'indonesian-movies',
-  indoDrama: 'indonesian-drama',
-  kdrama: 'kdrama',
-  shortTv: 'short-tv',
-  anime: 'anime',
-  search: 'search',
-  detail: 'detail'
+export const api = {
+  getTrending: (page = 1) => fetchFromApi({ action: 'trending', page }),
+  getIndonesianMovies: (page = 1) => fetchFromApi({ action: 'indonesian-movies', page }),
+  getIndonesianDrama: (page = 1) => fetchFromApi({ action: 'indonesian-drama', page }),
+  getKDrama: (page = 1) => fetchFromApi({ action: 'kdrama', page }),
+  getShortTV: (page = 1) => fetchFromApi({ action: 'short-tv', page }),
+  getAnime: (page = 1) => fetchFromApi({ action: 'anime', page }),
+  getAdultComedy: (page = 1) => fetchFromApi({ action: 'adult-comedy', page }),
+  getWesternTV: (page = 1) => fetchFromApi({ action: 'western-tv', page }),
+  getIndoDub: (page = 1) => fetchFromApi({ action: 'indo-dub', page }),
+  search: (keyword) => fetchFromApi({ action: 'search', q: keyword }),
+  getDetail: (detailPath) => fetchFromApi({ action: 'detail', detailPath }),
 };
