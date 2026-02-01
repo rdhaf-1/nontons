@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="StreamFlix - Nonton Film dan Series Gratis Sub Indo">
+    <title>StreamFlix</title>
+    
+    <!-- Tailwind CSS (CDN) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Lucide Icons (CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <!-- Google Fonts -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #141414;
+            color: white;
+            overscroll-behavior-y: none;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #141414; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #555; }
+
+        /* Animations */
+        .fade-in { animation: fadeIn 0.5s ease-in-out; }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .shimmer {
+            background: linear-gradient(90deg, #1f2937 25%, #374151 50%, #1f2937 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        
+        .aspect-poster { aspect-ratio: 2/3; }
+        .aspect-video { aspect-ratio: 16/9; }
+        .no-tap-highlight { -webkit-tap-highlight-color: transparent; }
+    </style>
+    
+    <!-- Tailwind Config -->
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        netflixRed: '#E50914',
+                        darkBg: '#141414',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen flex flex-col no-tap-highlight">
+
+    <!-- Navbar -->
+    <nav id="navbar" class="fixed w-full z-50 transition-all duration-300 bg-gradient-to-b from-black/80 to-transparent">
+        <div class="max-w-7xl mx-auto px-4 md:px-8 py-4 flex items-center justify-between gap-4">
+            <div class="flex items-center gap-8">
+                <h1 onclick="app.navigate('home', 'trending')" class="text-netflixRed text-3xl font-extrabold tracking-tighter cursor-pointer hover:scale-105 transition-transform">
+                    STREAMFLIX
+                </h1>
+                <ul class="hidden md:flex gap-6 text-sm font-medium text-gray-300">
+                    <li onclick="app.navigate('home', 'trending')" class="nav-item cursor-pointer hover:text-white transition" data-action="trending">Trending</li>
+                    <li onclick="app.navigate('home', 'indonesian-movies')" class="nav-item cursor-pointer hover:text-white transition" data-action="indonesian-movies">Film Indo</li>
+                    <li onclick="app.navigate('home', 'kdrama')" class="nav-item cursor-pointer hover:text-white transition" data-action="kdrama">K-Drama</li>
+                    <li onclick="app.navigate('home', 'anime')" class="nav-item cursor-pointer hover:text-white transition" data-action="anime">Anime</li>
+                </ul>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="relative hidden sm:block group">
+                    <input type="text" id="searchInput" placeholder="Cari film..." class="bg-black/50 border border-gray-600 rounded-full py-1.5 pl-10 pr-4 text-sm focus:outline-none focus:border-white w-64 transition-all focus:w-72" />
+                    <i data-lucide="search" class="absolute left-3 top-1.5 text-gray-400 w-4 h-4"></i>
+                </div>
+                <button id="mobileMenuBtn" class="md:hidden text-white p-1">
+                    <i data-lucide="menu" class="w-6 h-6"></i>
+                </button>
+            </div>
+        </div>
+
+        <div id="mobileMenu" class="hidden md:hidden absolute top-full left-0 w-full bg-darkBg border-t border-gray-800 p-4 flex flex-col gap-4 shadow-2xl">
+            <input type="text" id="mobileSearchInput" placeholder="Cari film..." class="bg-gray-800 w-full p-3 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-netflixRed" />
+            <button onclick="app.navigate('home', 'trending')" class="text-left py-2 border-b border-gray-800 text-gray-300">Trending</button>
+            <button onclick="app.navigate('home', 'indonesian-movies')" class="text-left py-2 border-b border-gray-800 text-gray-300">Film Indonesia</button>
+            <button onclick="app.navigate('home', 'kdrama')" class="text-left py-2 border-b border-gray-800 text-gray-300">K-Drama</button>
+            <button onclick="app.navigate('home', 'anime')" class="text-left py-2 border-b border-gray-800 text-gray-300">Anime</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="flex-grow pb-20 relative">
+        <div id="heroSection" class="relative hidden"></div>
+
+        <div class="max-w-7xl mx-auto px-4 md:px-8 pt-24" id="contentContainer">
+            <div class="flex items-center gap-2 mb-6">
+                <h2 id="sectionTitle" class="text-2xl font-semibold text-white capitalize">Trending</h2>
+            </div>
+            
+            <div id="gridContainer" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6"></div>
+            
+            <div id="loadingIndicator" class="hidden grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 md:gap-6 w-full"></div>
+        </div>
+
+        <div id="detailSection" class="hidden fixed inset-0 z-[60] bg-darkBg overflow-y-auto"></div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-black py-8 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 text-center text-gray-500 text-sm">
+            <p class="mb-2">&copy; 2024 StreamFlix.</p>
+            <div class="flex justify-center gap-4 text-xs">
+                <span>DMCA</span>
+                <span>Privacy Policy</span>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Templates -->
+    <template id="skeletonTemplate">
+        <div class="animate-pulse flex flex-col space-y-2">
+            <div class="bg-gray-800 aspect-poster rounded-md w-full shimmer"></div>
+            <div class="h-4 bg-gray-800 rounded w-3/4 shimmer"></div>
+            <div class="h-3 bg-gray-800 rounded w-1/2 shimmer"></div>
+        </div>
+    </template>
+
+    <!-- App Logic -->
+    <script>
+        const API_BASE_URL = "https://zeldvorik.ru/apiv3/api.php";
+        
+        class App {
+            constructor() {
+                this.state = {
+                    view: 'home',
+                    category: 'trending',
+                    items: [],
+                    heroItems: [],
+                    loading: false,
+                    searchQuery: '',
+                    currentDetail: null
+                };
+                this.debounceTimer = null;
+                this.heroInterval = null;
+                this.init();
+            }
+
+            init() {
+                this.setupEventListeners();
+                this.navigate('home', 'trending');
+            }
+
+            setupEventListeners() {
+                window.addEventListener('scroll', () => {
+                    const nav = document.getElementById('navbar');
+                    if (window.scrollY > 50) {
+                        nav.classList.add('bg-darkBg/95', 'shadow-md');
+                        nav.classList.remove('bg-gradient-to-b');
+                    } else {
+                        nav.classList.remove('bg-darkBg/95', 'shadow-md');
+                        nav.classList.add('bg-gradient-to-b');
+                    }
+                });
+
+                const handleSearch = (e) => {
+                    clearTimeout(this.debounceTimer);
+                    this.debounceTimer = setTimeout(() => {
+                        const query = e.target.value.trim();
+                        if (query.length > 2) {
+                            this.performSearch(query);
+                        } else if (query.length === 0 && this.state.view === 'home') {
+                            this.navigate('home', 'trending');
+                        }
+                    }, 800);
+                };
+
+                document.getElementById('searchInput').addEventListener('input', handleSearch);
+                document.getElementById('mobileSearchInput').addEventListener('input', handleSearch);
+
+                const btn = document.getElementById('mobileMenuBtn');
+                const menu = document.getElementById('mobileMenu');
+                btn.addEventListener('click', () => {
+                    menu.classList.toggle('hidden');
+                    lucide.createIcons();
+                });
+            }
+
+            async navigate(view, category = null) {
+                this.state.view = view;
+                if (category) this.state.category = category;
+                
+                if (category && category !== 'search') {
+                    document.getElementById('searchInput').value = '';
+                    document.getElementById('mobileSearchInput').value = '';
+                    this.state.searchQuery = '';
+                }
+
+                document.getElementById('mobileMenu').classList.add('hidden');
+                document.getElementById('detailSection').classList.add('hidden');
+                
+                if (view === 'home') {
+                    document.getElementById('contentContainer').classList.remove('hidden');
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    
+                    document.querySelectorAll('.nav-item').forEach(el => {
+                        if (el.dataset.action === category) {
+                            el.classList.add('text-white', 'font-bold');
+                            el.classList.remove('text-gray-300');
+                        } else {
+                            el.classList.remove('text-white', 'font-bold');
+                            el.classList.add('text-gray-300');
+                        }
+                    });
+                    await this.fetchData(category);
+                }
+            }
+
+            async performSearch(query) {
+                this.state.searchQuery = query;
+                this.state.category = 'search';
+                document.getElementById('heroSection').classList.add('hidden');
+                document.getElementById('sectionTitle').innerHTML = `Hasil pencarian: "<span class="text-white">${query}</span>"`;
+                await this.fetchData('search', query);
+            }
+
+            async fetchData(action, query = '') {
+                this.setLoading(true);
+                try {
+                    let url = `${API_BASE_URL}?action=${action}`;
+                    if (action === 'search') url += `&q=${query}`;
+                    else url += `&page=1`;
+
+                    const res = await fetch(url);
+                    const data = await res.json();
+
+                    if (data.success && data.items) {
+                        this.state.items = data.items;
+                        if (action === 'trending' && !query) {
+                            this.state.heroItems = data.items.slice(0, 5);
+                            this.renderHero();
+                        } else {
+                            if (action !== 'trending' || query) {
+                                document.getElementById('heroSection').classList.add('hidden');
+                                document.getElementById('contentContainer').classList.remove('pt-8');
+                                document.getElementById('contentContainer').classList.add('pt-24');
+                            }
+                        }
+                        if (!query) {
+                             const labels = {
+                                 'trending': 'Sedang Trending',
+                                 'indonesian-movies': 'Film Indonesia',
+                                 'indonesian-drama': 'Drama Indonesia',
+                                 'kdrama': 'Drama Korea',
+                                 'anime': 'Anime',
+                                 'short-tv': 'Short TV'
+                             };
+                             document.getElementById('sectionTitle').textContent = labels[action] || 'Hasil';
+                        }
+                        this.renderGrid();
+                    } else {
+                        this.state.items = [];
+                        this.renderGrid();
+                    }
+                } catch (err) {
+                    console.error("API Error", err);
+                } finally {
+                    this.setLoading(false);
+                }
+            }
+
+            setLoading(isLoading) {
+                this.state.loading = isLoading;
+                const grid = document.getElementById('gridContainer');
+                const loader = document.getElementById('loadingIndicator');
+                
+                if (isLoading) {
+                    grid.classList.add('hidden');
+                    loader.classList.remove('hidden');
+                    loader.innerHTML = '';
+                    const tmpl = document.getElementById('skeletonTemplate');
+                    for(let i=0; i<10; i++) {
+                        loader.appendChild(tmpl.content.cloneNode(true));
+                    }
+                } else {
+                    grid.classList.remove('hidden');
+                    loader.classList.add('hidden');
+                }
+            }
+
+            renderHero() {
+                const container = document.getElementById('heroSection');
+                if (this.state.heroItems.length === 0) return;
+
+                container.classList.remove('hidden');
+                document.getElementById('contentContainer').classList.remove('pt-24');
+                document.getElementById('contentContainer').classList.add('pt-8');
+
+                let currentIndex = 0;
+                const updateHero = () => {
+                    const item = this.state.heroItems[currentIndex];
+                    if(!item) return;
+                    container.innerHTML = `
+                        <div class="relative h-[55vh] md:h-[75vh] w-full overflow-hidden fade-in">
+                            <div class="absolute inset-0">
+                                <img src="${item.poster}" alt="${item.title}" class="w-full h-full object-cover object-top opacity-50 blur-sm scale-110">
+                                <div class="absolute inset-0 bg-gradient-to-t from-darkBg via-darkBg/60 to-transparent"></div>
+                                <div class="absolute inset-0 bg-gradient-to-r from-darkBg via-darkBg/40 to-transparent"></div>
+                            </div>
+                            <div class="relative z-10 h-full flex flex-col justify-end pb-16 px-4 md:px-12 max-w-7xl mx-auto">
+                                <div class="max-w-2xl">
+                                    <span class="text-netflixRed font-bold tracking-wider text-sm md:text-base mb-2 block uppercase">Top Pick #${currentIndex + 1}</span>
+                                    <h1 class="text-3xl md:text-5xl lg:text-6xl font-extrabold text-white mb-4 leading-tight drop-shadow-lg line-clamp-2">${item.title}</h1>
+                                    <div class="flex items-center gap-4 text-sm md:text-base text-gray-300 mb-6">
+                                        <span class="flex items-center gap-1 text-green-400 font-bold"><i data-lucide="star" class="w-4 h-4 fill-current"></i> ${item.rating || 'N/A'}</span>
+                                        <span>${item.year}</span>
+                                        <span class="border border-gray-500 px-2 rounded text-xs">HD</span>
+                                    </div>
+                                    <div class="flex gap-4">
+                                        <button onclick="app.openDetail('${item.detailPath}')" class="bg-white text-black px-6 md:px-8 py-2 md:py-3 rounded hover:bg-gray-200 transition font-bold flex items-center gap-2">
+                                            <i data-lucide="play" class="w-5 h-5 fill-current"></i> Putar
+                                        </button>
+                                        <button onclick="app.openDetail('${item.detailPath}')" class="bg-gray-500/40 backdrop-blur-md text-white px-6 md:px-8 py-2 md:py-3 rounded hover:bg-gray-500/60 transition font-bold flex items-center gap-2">
+                                            <i data-lucide="info" class="w-5 h-5"></i> Info
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                };
+                updateHero();
+                if (this.heroInterval) clearInterval(this.heroInterval);
+                this.heroInterval = setInterval(() => {
+                    currentIndex = (currentIndex + 1) % Math.min(this.state.heroItems.length, 5);
+                    updateHero();
+                }, 6000);
+            }
+
+            renderGrid() {
+                const container = document.getElementById('gridContainer');
+                container.innerHTML = '';
+                if (this.state.items.length === 0) {
+                    container.innerHTML = `
+                        <div class="col-span-full h-64 flex flex-col items-center justify-center text-gray-500">
+                            <i data-lucide="film" class="w-12 h-12 mb-4 opacity-50"></i>
+                            <p>Tidak ada konten ditemukan.</p>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                    return;
+                }
+                this.state.items.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = "group relative cursor-pointer transition-transform duration-300 hover:scale-105 hover:z-10";
+                    card.onclick = () => this.openDetail(item.detailPath);
+                    card.innerHTML = `
+                        <div class="aspect-poster rounded-lg overflow-hidden relative shadow-lg bg-gray-900">
+                            <img src="${item.poster}" alt="${item.title}" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity" onerror="this.src='https://via.placeholder.com/300x450?text=No+Image'">
+                            <div class="absolute top-2 right-2 bg-black/60 backdrop-blur-sm px-2 py-1 rounded text-xs font-bold text-yellow-400 flex items-center gap-1">
+                                <i data-lucide="star" class="w-3 h-3 fill-current"></i> ${item.rating || 'N/A'}
+                            </div>
+                            ${item.year ? `<div class="absolute top-2 left-2 bg-netflixRed px-2 py-1 rounded text-[10px] font-bold text-white uppercase">${item.year}</div>` : ''}
+                        </div>
+                        <div class="mt-2 px-1">
+                            <h3 class="text-white text-sm font-semibold truncate group-hover:text-netflixRed transition-colors">${item.title}</h3>
+                            <div class="flex justify-between items-center text-xs text-gray-400 mt-1">
+                                <span>${item.type === 'tv' ? 'Series' : 'Movie'}</span>
+                                <span>${item.genre ? item.genre.split(',')[0] : ''}</span>
+                            </div>
+                        </div>
+                    `;
+                    container.appendChild(card);
+                });
+                lucide.createIcons();
+            }
+
+            async openDetail(detailPath) {
+                const container = document.getElementById('detailSection');
+                container.classList.remove('hidden');
+                container.innerHTML = `
+                    <div class="flex items-center justify-center min-h-screen text-white">
+                        <div class="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-netflixRed"></div>
+                    </div>
+                `;
+
+                try {
+                    const res = await fetch(`${API_BASE_URL}?action=detail&detailPath=${detailPath}`);
+                    const detail = await res.json();
+                    
+                    let videoUrl = detail.playerUrl || detail.url || detail.iframe || '';
+                    
+                    let episodesHtml = '';
+                    if (detail.episodes && detail.episodes.length > 0) {
+                        videoUrl = detail.episodes[0].url; 
+                        episodesHtml = `
+                            <div class="mt-8 border-t border-gray-800 pt-6">
+                                <h3 class="text-xl font-bold mb-4 flex items-center gap-2 text-gray-200"><i data-lucide="layers" class="w-5 h-5"></i> Episodes</h3>
+                                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar" id="episodeGrid">
+                                    ${detail.episodes.map((ep, idx) => `
+                                        <button 
+                                            onclick="app.changeSource('${ep.url}', this)" 
+                                            class="p-3 rounded text-left transition text-sm truncate border border-transparent hover:border-gray-500
+                                            ${idx === 0 ? 'bg-netflixRed text-white font-semibold' : 'bg-gray-800 text-gray-300 hover:bg-gray-700'}">
+                                            ${ep.title || `Episode ${idx + 1}`}
+                                        </button>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    let playerHtml = '';
+                    let externalLinkSection = '';
+                    
+                    if (videoUrl) {
+                        playerHtml = `
+                            <iframe id="mainPlayer" src="${videoUrl}" class="w-full h-full bg-black" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen referrerpolicy="origin"></iframe>
+                        `;
+                        externalLinkSection = `
+                            <a id="extLinkBtn" href="${videoUrl}" target="_blank" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-gray-800 hover:bg-gray-700 text-white px-6 py-3 rounded-lg mt-4 transition border border-gray-700 shadow-lg font-semibold">
+                                <i data-lucide="external-link" class="w-5 h-5"></i>
+                                <span>Buka Player di Tab Baru</span>
+                            </a>
+                            <p class="text-gray-500 text-xs mt-2 ml-1">*Klik tombol di atas jika video tidak bisa diputar atau hanya berputar (loading) terus menerus.</p>
+                        `;
+                    } else {
+                        const searchUrl = `https://www.google.com/search?q=nonton+${encodeURIComponent(detail.title)}+sub+indo`;
+                        playerHtml = `
+                           <div class="w-full h-full flex flex-col items-center justify-center bg-gray-900 text-gray-400 gap-2 p-4 text-center border-b border-gray-800">
+                             <i data-lucide="video-off" class="w-12 h-12 mb-2 text-red-500"></i>
+                             <p class="font-bold text-white text-lg">Server Video Kosong</p>
+                             <p class="text-sm max-w-md text-gray-400">Maaf, API tidak menyediakan link streaming untuk film ini.</p>
+                             <a href="${searchUrl}" target="_blank" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-bold text-sm mt-4 transition flex items-center gap-2 shadow-lg">
+                                <i data-lucide="search" class="w-4 h-4"></i> Cari Manual di Google
+                             </a>
+                           </div>
+                        `;
+                        externalLinkSection = `
+                            <div class="bg-red-900/20 border border-red-900/50 p-3 rounded mt-4 text-center">
+                                <p class="text-red-400 text-sm">Link stream tidak tersedia dari server sumber.</p>
+                            </div>
+                        `;
+                    }
+
+                    container.innerHTML = `
+                        <div class="bg-darkBg min-h-screen pb-20 fade-in">
+                            <div class="fixed top-0 left-0 w-full z-50 p-4 bg-gradient-to-b from-black/90 to-transparent pointer-events-none">
+                                <button onclick="app.closeDetail()" class="pointer-events-auto flex items-center gap-2 bg-white/10 backdrop-blur-md px-4 py-2 rounded-full hover:bg-white/20 transition text-sm font-medium border border-white/10">
+                                    <i data-lucide="arrow-left" class="w-4 h-4"></i> Kembali
+                                </button>
+                            </div>
+
+                            <div class="w-full aspect-video max-h-[85vh] bg-black relative pt-16 md:pt-0 group">
+                                ${playerHtml}
+                            </div>
+                            
+                            <div class="max-w-7xl mx-auto px-4 md:px-12">
+                                ${externalLinkSection}
+                            </div>
+
+                            <div class="max-w-7xl mx-auto px-4 md:px-12 py-6">
+                                <div class="flex flex-col md:flex-row gap-8">
+                                    <div class="hidden md:block w-56 shrink-0">
+                                        <img src="${detail.poster}" class="w-full rounded-lg shadow-2xl border border-gray-800">
+                                    </div>
+                                    <div class="flex-1">
+                                        <h1 class="text-2xl md:text-4xl font-bold mb-3 leading-tight">${detail.title}</h1>
+                                        
+                                        <div class="flex flex-wrap items-center gap-4 text-xs md:text-sm text-gray-400 mb-6">
+                                            <span class="text-green-400 font-bold flex items-center gap-1 border border-green-400/30 bg-green-400/10 px-2 py-0.5 rounded">
+                                                <i data-lucide="star" class="w-3 h-3 fill-current"></i> ${detail.rating || 'N/A'}
+                                            </span>
+                                            <span>${detail.year}</span>
+                                            <span class="px-2 py-0.5 border border-gray-700 rounded bg-gray-800">${detail.status || 'HD'}</span>
+                                            <span class="text-gray-300">${detail.genre}</span>
+                                        </div>
+
+                                        <p class="text-gray-300 leading-relaxed mb-8 text-sm md:text-base font-light">
+                                            ${detail.description || detail.synopsis || "Deskripsi tidak tersedia."}
+                                        </p>
+                                        ${episodesHtml}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    lucide.createIcons();
+
+                } catch (err) {
+                    console.error(err);
+                    container.innerHTML = `
+                        <div class="flex flex-col items-center justify-center min-h-screen text-white gap-4 p-4 text-center">
+                            <i data-lucide="wifi-off" class="w-12 h-12 text-gray-500"></i>
+                            <p>Gagal memuat detail film. Cek koneksi internet Anda.</p>
+                            <button onclick="app.closeDetail()" class="bg-netflixRed px-6 py-2 rounded font-medium">Tutup</button>
+                        </div>
+                    `;
+                    lucide.createIcons();
+                }
+            }
+
+            closeDetail() {
+                const container = document.getElementById('detailSection');
+                container.classList.add('hidden');
+                container.innerHTML = ''; 
+            }
+
+            changeSource(url, btn) {
+                const player = document.getElementById('mainPlayer');
+                if(player) {
+                    player.src = url;
+                    const extLink = document.getElementById('extLinkBtn');
+                    if(extLink && url) extLink.href = url;
+                }
+                const grid = document.getElementById('episodeGrid');
+                if(grid) {
+                    Array.from(grid.children).forEach(child => {
+                        child.className = "p-3 rounded text-left transition text-sm truncate border border-transparent hover:border-gray-500 bg-gray-800 text-gray-300 hover:bg-gray-700";
+                    });
+                    btn.className = "p-3 rounded text-left transition text-sm truncate border border-transparent bg-netflixRed text-white font-semibold";
+                }
+            }
+        }
+
+        const app = new App();
+    </script>
+</body>
+</html>
+
+
